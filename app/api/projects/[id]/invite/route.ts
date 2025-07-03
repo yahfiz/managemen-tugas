@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(
+  req: Request,
+  context: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+
+  if (!user) {
+    return new NextResponse("User tidak ditemukan", { status: 404 });
+  }
+
+  // ✅ FIX: params harus di-resolve dulu
+  const resolvedParams = await Promise.resolve(context.params);
+  const projectId = resolvedParams.id;
+
+  // Ambil email dari form
+  const formData = await req.formData();
+  const emailToInvite = formData.get("email") as string;
+
+  if (!emailToInvite) {
+    return new NextResponse("Email wajib diisi", { status: 400 });
+  }
+
+  const invitedUser = await prisma.user.findUnique({
+    where: { email: emailToInvite },
+  });
+
+  if (!invitedUser) {
+    return new NextResponse("User dengan email tersebut tidak ditemukan", {
+      status: 404,
+    });
+  }
+
+  const existing = await prisma.membership.findFirst({
+    where: {
+      projectId: projectId,
+      userId: invitedUser.id,
+    },
+  });
+
+  if (existing) {
+    return new NextResponse("User sudah jadi anggota project ini", {
+      status: 400,
+    });
+  }
+
+  await prisma.membership.create({
+    data: {
+      projectId: projectId,
+      userId: invitedUser.id,
+    },
+  });
+
+  return NextResponse.json({ success: true });
+}
