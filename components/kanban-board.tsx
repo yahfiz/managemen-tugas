@@ -1,25 +1,18 @@
+// components/kanban-board.tsx
 "use client";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
-// import { CSS } from "@dnd-kit/utilities"; // Dihapus: tidak digunakan
 import { useState, useTransition } from "react";
-import KanbanColumn from "./kanban-column"; // Pastikan komponen ini juga memiliki styling yang cocok dengan tema gelap
+import KanbanColumn from "./kanban-column";
+import { Task } from "@/types"; // <-- Import Task dari file tipe bersama
 
-// Definisi interface Task, ini sudah benar dan tidak menyebabkan error
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  status: "todo" | "in-progress" | "done"; // Sesuaikan dengan enum Status di Prisma Anda
-  projectId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
+// Interface KanbanBoardProps sekarang didefinisikan di types/index.ts,
+// atau jika Anda tidak ingin memindahkannya, definisikan di sini TAPI PASTIKAN MENGGUNAKAN `Task` yang diimpor
 interface KanbanBoardProps {
   tasks: Task[];
   projectId: string;
 }
+
 
 export default function KanbanBoard({ tasks, projectId }: KanbanBoardProps) {
   const [taskList, setTaskList] = useState<Task[]>(tasks);
@@ -30,6 +23,8 @@ export default function KanbanBoard({ tasks, projectId }: KanbanBoardProps) {
     { title: "⏳ In Progress", status: "in-progress" },
     { title: "✅ Done", status: "done" },
   ] as const;
+  // `columns.status` ini adalah literal union, yang akan digunakan untuk filtering dan props `status` ke `KanbanColumn`.
+  // Ini OK karena kita akan melakukan type assertion atau memastikan `KanbanColumn` bisa menerimanya.
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -38,11 +33,13 @@ export default function KanbanBoard({ tasks, projectId }: KanbanBoardProps) {
     const movedTask = taskList.find((t) => t.id === active.id);
     if (!movedTask) return;
 
-    const newStatus = over.id as "todo" | "in-progress" | "done";
+    // `over.id` akan sesuai dengan `col.status` dari `columns` (yaitu "todo", "in-progress", "done")
+    // Ini bisa di-cast ke string karena status di Task adalah string.
+    const newStatus: string = over.id as string;
 
     if (movedTask.status === newStatus) return;
 
-    // Optimistik update UI
+    // Optimistic update UI
     const updatedTask = { ...movedTask, status: newStatus };
     const updatedList = taskList.map((t) =>
       t.id === movedTask.id ? updatedTask : t
@@ -52,36 +49,36 @@ export default function KanbanBoard({ tasks, projectId }: KanbanBoardProps) {
     // Kirim ke server
     startTransition(async () => {
       const response = await fetch(`/api/tasks/${movedTask.id}`, {
-        method: "POST", // Menggunakan POST dengan _method: PUT untuk form submission
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded', // Penting untuk URLSearchParams
+          "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          _method: "PUT", // Ini adalah cara Next.js menangani method override untuk form actions
+          _method: "PUT",
           title: movedTask.title,
-          description: movedTask.description ?? "", // Pastikan description tidak null
+          description: movedTask.description ?? "",
           status: newStatus,
-        }).toString(), // Pastikan body diubah menjadi string
+          assigneeId: movedTask.assigneeId ?? "",
+        }).toString(),
       });
 
-      // Handle response jika diperlukan, misalnya untuk error handling
       if (!response.ok) {
         console.error("Failed to update task status on server.");
-        // Opsional: rollback UI jika update server gagal
-        // setTaskList(taskList);
       }
     });
   };
 
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      {/* Container untuk kolom-kolom Kanban */}
-      {/* Menambahkan styling untuk mencocokkan tema gelap page.tsx */}
-      <div className="flex flex-col md:flex-row gap-4 p-4 rounded-lg"> {/* Hapus bg-gray-800 di sini karena sudah di page.tsx */}
+      <div className="flex flex-col md:flex-row gap-4 p-4 rounded-lg">
         {columns.map((col) => (
           <KanbanColumn
             key={col.status}
             title={col.title}
+            // Penting: Mengirim `col.status` sebagai string literal
+            // `KanbanColumn` atau komponen anak harus menerima prop `status` sebagai string biasa,
+            // atau Anda harus melakukan casting jika `KanbanColumn` mengharapkan literal union.
+            // Asumsikan KanbanColumn menerima `status: string;`
             status={col.status}
             tasks={taskList.filter((task) => task.status === col.status)}
             projectId={projectId}

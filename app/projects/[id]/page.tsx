@@ -1,13 +1,13 @@
 // app/projects/[id]/page.tsx
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { notFound, redirect } from "next/navigation"; // Pastikan redirect diimpor
+import { authOptions } from "@/lib/authOptions";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import TaskForm from "@/components/task-form";
 import KanbanBoard from "@/components/kanban-board";
 import TaskStats from "@/components/TaskStats";
-import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal } from "react"; 
+import { Task, ProjectMember } from "@/types"; // <-- Import Task dan ProjectMember dari file tipe bersama
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +16,11 @@ export default async function ProjectDetailPage({
 }: {
   params: { id: string };
 }) {
-  const { id } = await params; 
+  const { id } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    redirect("/login"); // Redirect ke login jika tidak ada sesi
+    redirect("/login");
   }
 
   const user = await prisma.user.findUnique({
@@ -39,7 +39,7 @@ export default async function ProjectDetailPage({
       ],
     },
     include: {
-      tasks: true,
+      tasks: true, // Prisma akan mengembalikan Task[] sesuai schema Anda
       members: { include: { user: true } },
     },
   });
@@ -87,13 +87,15 @@ export default async function ProjectDetailPage({
         {/* Bagian Kanban Board - di dalam card */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-200">📋 Kanban Board</h2>
-          <KanbanBoard tasks={project.tasks} projectId={project.id} />
+          {/* Casting project.tasks ke Task[] (dari types/index.ts) */}
+          <KanbanBoard tasks={project.tasks as Task[]} projectId={project.id} />
         </div>
 
         {/* Bagian Task Stats - di dalam card */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-200">📊 Statistik Task</h2>
-          <TaskStats tasks={project.tasks}/>
+          {/* Casting project.tasks ke Task[] (dari types/index.ts) */}
+          <TaskStats tasks={project.tasks as Task[]} />
         </div>
 
         {/* Bagian Anggota Project - di dalam card */}
@@ -101,7 +103,8 @@ export default async function ProjectDetailPage({
           <h2 className="text-xl font-semibold mb-4 text-gray-200">👥 Anggota Project</h2>
           <ul className="space-y-2">
             <li className="text-base text-gray-300">👑 {user.email} (Owner)</li>
-            {project.members.map((member: { id: Key | null | undefined; user: { email: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }; }) => (
+            {/* Casting project.members ke ProjectMember[] (dari types/index.ts) */}
+            {(project.members as ProjectMember[]).map((member) => (
               <li key={member.id} className="text-base text-gray-300">
                 👤 {member.user.email}
               </li>

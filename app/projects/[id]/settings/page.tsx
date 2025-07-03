@@ -1,10 +1,10 @@
 // app/projects/[id]/settings/page.tsx
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import InviteMemberForm from "@/components/invite-member-form";
+import { authOptions } from "@/lib/authOptions";
 
 export const dynamic = "force-dynamic";
 
