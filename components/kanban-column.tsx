@@ -14,7 +14,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import TaskItem from "./TaskItem";
-import { Task } from "@/types"; // <-- PASTIKAN ANDA MENGIMPOR INI
+import { Task } from "@prisma/client"; // ✅ Ubah ke ini
 
 interface KanbanColumnProps {
   title: string;

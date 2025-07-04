@@ -1,72 +1,102 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/tasks/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server"; // Biarkan NextRequest karena digunakan di helper functions
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 import { prisma } from "@/lib/prisma";
 
 // POST handler for method override (_method)
 export async function POST(
-  req: NextRequest,
-  context: { params: { id: string } }
+  request: Request, // Gunakan 'request' dan tipe 'Request' untuk konsistensi dengan App Router
+  { params }: { params: { id: string } } // Pastikan tanda tangan ini
 ) {
-  const { id } = await Promise.resolve(context.params); // ✅ FIXED
+  // ✅ KOREKSI: Akses id langsung dari params
+  const taskId = params.id;
 
-  const formData = await req.formData();
+  const formData = await request.formData(); // Gunakan 'request'
   const method = formData.get("_method");
 
   if (method === "DELETE") {
-    return await handleDelete(id, req);
+    // Teruskan 'request' ke fungsi helper (yang sudah type `NextRequest`)
+    // atau ubah tanda tangan handleDelete menjadi `(id: string, request: Request)`
+    return await handleDelete(taskId, request as NextRequest); // Type assertion atau ubah signature
   } else if (method === "PUT") {
-    return await handlePut(id, req, formData);
+    // Teruskan 'request' ke fungsi helper (yang sudah type `NextRequest`)
+    return await handlePut(taskId, request as NextRequest, formData); // Type assertion atau ubah signature
   }
 
-  return new NextResponse("Method Not Allowed", { status: 405 });
+  // ✅ KOREKSI: Gunakan NextResponse.json untuk respons error
+  return NextResponse.json({ message: "Method Not Allowed" }, { status: 405 });
 }
 
 // ✅ DELETE Task
-async function handleDelete(id: string, req: NextRequest) {
+async function handleDelete(id: string, request: NextRequest) { // Gunakan 'request' untuk konsistensi
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
   });
 
-  if (!user) return new NextResponse("User not found", { status: 404 });
+  if (!user) {
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "User not found" }, { status: 404 });
+  }
 
   const task = await prisma.task.findUnique({
     where: { id },
     include: { project: true },
   });
 
+  // Pastikan user adalah assignee atau owner project
   if (!task || (task.assigneeId !== user.id && task.project.ownerId !== user.id)) {
-    return new NextResponse("Forbidden", { status: 403 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Forbidden: Not authorized to delete this task" }, { status: 403 });
   }
 
   await prisma.task.delete({ where: { id } });
-  return new NextResponse(null, { status: 204 });
+  // ✅ KOREKSI: Mengembalikan pesan sukses JSON atau tetap 204 No Content
+  // Jika ingin 204 No Content, NextResponse.json(null, { status: 204 }) juga bisa
+  // atau hanya return new Response(null, { status: 204 });
+  return NextResponse.json({ message: "Task successfully deleted" }, { status: 200 }); // Lebih informatif
 }
 
 // ✅ PUT / Edit Task
-async function handlePut(id: string, req: NextRequest, formData: FormData) {
+async function handlePut(id: string, request: NextRequest, formData: FormData) { // Gunakan 'request' untuk konsistensi
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
   });
 
-  if (!user) return new NextResponse("User not found", { status: 404 });
+  if (!user) {
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "User not found" }, { status: 404 });
+  }
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const status = formData.get("status") as string;
 
   if (!title || !status) {
-    return new NextResponse("Title dan status wajib diisi", { status: 400 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Title dan status wajib diisi" }, { status: 400 });
+  }
+
+  // Tambahkan pengecekan izin update, sama seperti delete
+  const taskToUpdate = await prisma.task.findUnique({
+    where: { id },
+    include: { project: true },
+  });
+
+  if (!taskToUpdate || (taskToUpdate.assigneeId !== user.id && taskToUpdate.project.ownerId !== user.id)) {
+    return NextResponse.json({ message: "Forbidden: Not authorized to update this task" }, { status: 403 });
   }
 
   const updated = await prisma.task.update({

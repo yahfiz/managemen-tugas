@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import InviteMemberForm from "@/components/invite-member-form";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,8 @@ export default async function ProjectSettingsPage({
 }: {
   params: { id: string };
 }) {
-  const { id } = await params;
+  // ✅ KOREKSI: Akses id langsung dari params
+  const { id } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -24,10 +25,15 @@ export default async function ProjectSettingsPage({
     where: { email: session.user.email },
   });
 
+  // ✅ KOREKSI: Tambahkan penanganan jika user tidak ditemukan
+  if (!user) {
+    notFound(); // Atau redirect ke halaman error/login
+  }
+
   const project = await prisma.project.findUnique({
     where: {
       id,
-      ownerId: user?.id,
+      ownerId: user.id, // Pastikan user.id digunakan di sini
     },
   });
 

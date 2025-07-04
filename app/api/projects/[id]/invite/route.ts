@@ -1,11 +1,12 @@
+// app/api/projects/[id]/invite/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
-  req: Request,
-  context: { params: { id: string } }
+  request: Request, // Gunakan 'request' sebagai nama argumen pertama
+  { params }: { params: { id: string } } // Tanda tangan fungsi yang benar untuk App Router
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -20,12 +21,11 @@ export async function POST(
     return new NextResponse("User tidak ditemukan", { status: 404 });
   }
 
-  // ✅ FIX: params harus di-resolve dulu
-  const resolvedParams = await Promise.resolve(context.params);
-  const projectId = resolvedParams.id;
+  // ✅ KOREKSI: Akses id langsung dari params
+  const projectId = params.id;
 
   // Ambil email dari form
-  const formData = await req.formData();
+  const formData = await request.formData(); // Gunakan 'request' bukan 'req'
   const emailToInvite = formData.get("email") as string;
 
   if (!emailToInvite) {

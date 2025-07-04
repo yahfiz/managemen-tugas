@@ -4,7 +4,7 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { useState, useTransition } from "react";
 import KanbanColumn from "./kanban-column";
-import { Task } from "@/types"; // <-- Import Task dari file tipe bersama
+import { Task } from "@prisma/client"; // ✅ Ubah ke ini
 
 // Interface KanbanBoardProps sekarang didefinisikan di types/index.ts,
 // atau jika Anda tidak ingin memindahkannya, definisikan di sini TAPI PASTIKAN MENGGUNAKAN `Task` yang diimpor

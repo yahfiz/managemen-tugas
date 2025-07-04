@@ -1,20 +1,23 @@
+// app/api/projects/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
+export async function POST(request: Request) { // Menggunakan 'request' untuk konsistensi
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user?.email) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await request.json(); // Menggunakan 'request'
   const name = body.name;
 
   if (!name) {
-    return new NextResponse("Nama project wajib diisi", { status: 400 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "Nama project wajib diisi" }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({
@@ -22,7 +25,8 @@ export async function POST(req: Request) {
   });
 
   if (!user) {
-    return new NextResponse("User tidak ditemukan", { status: 404 });
+    // ✅ KOREKSI: Gunakan NextResponse.json untuk respons JSON error
+    return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
   }
 
   await prisma.project.create({
@@ -32,5 +36,37 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ success: true });
+  // Respon sukses sudah benar menggunakan NextResponse.json
+  return NextResponse.json({ success: true, message: "Project berhasil dibuat" });
+}
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user?.email) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+
+  if (!user) {
+    return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
+  }
+
+  const projects = await prisma.project.findMany({
+    where: {
+      OR: [
+        { ownerId: user.id },
+        { members: { some: { userId: user.id } } },
+      ],
+    },
+    include: {
+        members: { include: { user: true } },
+        tasks: true,
+    }
+  });
+
+  return NextResponse.json(projects, { status: 200 });
 }

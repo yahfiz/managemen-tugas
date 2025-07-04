@@ -1,16 +1,17 @@
+// app/dashboard/page.tsx
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 import { prisma } from "@/lib/prisma";
 import ProjectForm from "@/components/project-form";
 import ProjectItem from "@/components/project-item";
-import { redirect } from "next/navigation"; 
-import LogoutButton from "@/components/logout-button"; 
+import { redirect } from "next/navigation";
+import LogoutButton from "@/components/logout-button";
+import { Project, User, Membership } from "@prisma/client"; // ✅ Ubah ke ini
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user?.email) {
-    // Menggunakan redirect dari next/navigation untuk server component
     redirect("/login");
   }
 
@@ -27,15 +28,21 @@ export default async function DashboardPage() {
   });
 
   if (!user) {
-    return <p className="text-red-500">User tidak ditemukan.</p>;
+    return <p className="text-red-500">User tidak ditemukan.</p>; // Respon yang valid untuk Server Component
   }
 
   // Gabungkan project sebagai pemilik dan sebagai anggota
   const ownedProjects = user.projects || [];
-  const memberProjects = user.members.map((m: { project: any; }) => m.project) || [];
+  // ✅ KOREKSI (Opsional): Penanganan tipe yang lebih baik untuk memberProjects
+  const memberProjects = user.members.map((m) => m.project) || [];
 
   // Filter project unik jika ada duplikasi (misal, jika user adalah owner dan member project yang sama)
-  const allProjects = Array.from(new Map([...ownedProjects, ...memberProjects].map(item => [item['id'], item])).values());
+  // Menggunakan Set untuk id project untuk memastikan keunikan
+  const uniqueProjectsMap = new Map<string, Project>(); // Asumsi Project interface ada
+  ownedProjects.forEach(p => uniqueProjectsMap.set(p.id, p));
+  memberProjects.forEach(p => uniqueProjectsMap.set(p.id, p));
+
+  const allProjects = Array.from(uniqueProjectsMap.values());
 
 
   return (
@@ -46,7 +53,6 @@ export default async function DashboardPage() {
             <h1 className="text-3xl font-bold">📁 Daftar Project</h1>
             <p className="text-sm text-gray-400">Halo, {user.name || "Pengguna"} 👋</p>
           </div>
-          {/* Tombol Logout ditempatkan di sini */}
           <LogoutButton />
         </div>
 

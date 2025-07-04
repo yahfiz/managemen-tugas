@@ -1,14 +1,14 @@
 // app/projects/[id]/page.tsx
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions } from "@/lib/authOptions"; // Sudah benar
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import TaskForm from "@/components/task-form";
 import KanbanBoard from "@/components/kanban-board";
 import TaskStats from "@/components/TaskStats";
-import { Task, ProjectMember } from "@/types"; // <-- Import Task dan ProjectMember dari file tipe bersama
-
+import { Task, Project, User, Membership } from "@prisma/client"; // ✅ Ubah ke ini (ProjectMember mungkin adalah Membership di Prisma)
+import email from "next-auth/providers/email";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectDetailPage({
@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({
     where: { email: session.user.email },
   });
   if (!user) {
-    notFound();
+    notFound(); // Menggunakan notFound() untuk kasus user tidak ditemukan
   }
 
   const project = await prisma.project.findFirst({
@@ -45,7 +45,7 @@ export default async function ProjectDetailPage({
   });
 
   if (!project) {
-    notFound();
+    notFound(); // Menggunakan notFound() untuk kasus project tidak ditemukan
   }
 
   return (
@@ -87,14 +87,14 @@ export default async function ProjectDetailPage({
         {/* Bagian Kanban Board - di dalam card */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-200">📋 Kanban Board</h2>
-          {/* Casting project.tasks ke Task[] (dari types/index.ts) */}
+          {/* Casting project.tasks ke Task[] (dari types/index.ts) - Opsional jika tipe sudah cocok */}
           <KanbanBoard tasks={project.tasks as Task[]} projectId={project.id} />
         </div>
 
         {/* Bagian Task Stats - di dalam card */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-200">📊 Statistik Task</h2>
-          {/* Casting project.tasks ke Task[] (dari types/index.ts) */}
+          {/* Casting project.tasks ke Task[] (dari types/index.ts) - Opsional jika tipe sudah cocok */}
           <TaskStats tasks={project.tasks as Task[]} />
         </div>
 
@@ -103,7 +103,7 @@ export default async function ProjectDetailPage({
           <h2 className="text-xl font-semibold mb-4 text-gray-200">👥 Anggota Project</h2>
           <ul className="space-y-2">
             <li className="text-base text-gray-300">👑 {user.email} (Owner)</li>
-            {/* Casting project.members ke ProjectMember[] (dari types/index.ts) */}
+            {/* Casting project.members ke ProjectMember[] (dari types/index.ts) - Opsional jika tipe sudah cocok */}
             {(project.members as ProjectMember[]).map((member) => (
               <li key={member.id} className="text-base text-gray-300">
                 👤 {member.user.email}
